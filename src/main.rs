@@ -1,4 +1,3 @@
-use std::fmt;
 use std::io;
 use std::io::{Read, Write};
 
@@ -25,38 +24,10 @@ fn to_ctrl_byte(c: char) -> char {
     (c as u8 & 0b0001_1111) as char
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 enum Error {
-    CrosstermError(crossterm::ErrorKind),
-    IoError(io::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::CrosstermError(e) => write!(f, "{}", e),
-            Error::IoError(e) => write!(f, "{}", e),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::CrosstermError(e) => Some(e),
-            Error::IoError(e) => Some(e),
-        }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::IoError(e)
-    }
-}
-
-impl From<crossterm::ErrorKind> for Error {
-    fn from(e: crossterm::ErrorKind) -> Self {
-        Error::CrosstermError(e)
-    }
+    #[error(transparent)]
+    CrosstermError(#[from] crossterm::ErrorKind),
+    #[error(transparent)]
+    IoError(#[from] io::Error),
 }

@@ -15,7 +15,8 @@ fn main() -> Result<()> {
 }
 
 fn get_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<Vec<Branch>> {
-    repo.branches(branch_type)?
+    let mut branches = repo
+        .branches(branch_type)?
         .map(|branch| {
             let (branch, _) = branch?;
             let commit = branch.get().peel_to_commit()?;
@@ -29,7 +30,9 @@ fn get_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<Ve
                 ),
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>>>()?;
+    branches.sort_unstable_by_key(|b| b.time);
+    Ok(branches)
 }
 
 fn list_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<String> {

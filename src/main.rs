@@ -1,27 +1,26 @@
-use std::io;
-use std::io::{Read, Write};
+fn main() -> Result<()> {
+    let repo = git2::Repository::open_from_env()?;
 
-fn main() -> Result<(), Error> {
-    let mut stdout = io::stdout();
-    let mut stdin = io::stdin().bytes();
-    crossterm::terminal::enable_raw_mode()?;
+    let local_branches = list_branches(&repo, git2::BranchType::Local)?;
+    let remote_branches = list_branches(&repo, git2::BranchType::Remote)?;
+    println!("Local branches:");
+    println!("{}", local_branches);
+    println!("Remote branches:");
+    println!("{}", remote_branches);
 
-    loop {
-        write!(stdout, ">>> ")?;
-        stdout.flush()?;
-        let c = stdin.next().unwrap()? as char;
-        if c == to_ctrl_byte('c') {
-            write!(stdout, "\n\r")?;
-            break;
-        }
-        write!(stdout, "{}\n\r", c)?;
-    }
-    crossterm::terminal::disable_raw_mode()?;
     Ok(())
 }
 
-fn to_ctrl_byte(c: char) -> char {
-    (c as u8 & 0b0001_1111) as char
+fn list_branches(repo: &git2::Repository, branch_type: git2::BranchType) -> Result<String> {
+    let mut branches = String::new();
+    for branch in repo.branches(Some(branch_type))? {
+        let (branch, _) = branch?;
+        let name = String::from_utf8_lossy(branch.name_bytes()?);
+        let commit_oid = branch.get().peel_to_commit()?.id();
+        let commit_sha1 = format!("{}", commit_oid);
+        branches.push_str(&format!("{} ({})\n", name, &commit_sha1[0..7]));
+    }
+    Ok(branches)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -29,5 +28,7 @@ enum Error {
     #[error(transparent)]
     CrosstermError(#[from] crossterm::ErrorKind),
     #[error(transparent)]
-    IoError(#[from] io::Error),
+    Git2Error(#[from] git2::Error),
 }
+
+type Result<T> = std::result::Result<T, Error>;

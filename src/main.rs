@@ -10,62 +10,68 @@ fn main() -> Result<()> {
 
 fn repl() -> Result<()> {
     let repo = Repository::open_from_env()?;
+    for branch in get_branches(&repo, Some(BranchType::Local))? {
+        let action = get_action(branch)?;
+        match action {
+            Action::Keep => (),
+            Action::Delete => (), // TODO
+            Action::Quit => break,
+        }
+    }
+    Ok(())
+}
+
+fn get_action(branch: Branch) -> Result<Action> {
     let mut stdout = io::stdout();
     let mut stdin = io::stdin().bytes();
-    'branch_loop: for branch in get_branches(&repo, Some(BranchType::Local))? {
-        loop {
-            write!(
-                stdout,
-                "\r\n{} ({}) last commit at {} (k/d/q/?) > ",
-                branch.name,
-                &branch.sha1[0..7],
-                branch.time
-            )?;
-            stdout.flush()?;
-            // Unwrapping is okay because stdin.next() never returns None.
-            let selection = stdin.next().unwrap()? as char;
-            match selection {
-                'k' => {
-                    write!(stdout, "Keeping {}\r\n", branch.name)?;
-                    break;
-                }
-                'd' => {
-                    write!(stdout, "Deleting {}\r\n", branch.name)?;
-                    // TODO: Implement delete
-                    break;
-                }
-                '?' => {
-                    write!(stdout, "Help:\r\n")?;
-                    write!(stdout, "k - Keep the branch\r\n")?;
-                    write!(stdout, "d - Delete the branch\r\n")?;
-                    write!(stdout, "q - Quit\r\n")?;
-                    write!(stdout, "? - Show this help menu\r\n")?;
-                }
-                '\r' => {
+    loop {
+        write!(
+            stdout,
+            "\r\n{} ({}) last commit at {} (k/d/q/?) > ",
+            branch.name,
+            &branch.sha1[0..7],
+            branch.time
+        )?;
+        stdout.flush()?;
+        // Unwrapping is okay because stdin.next() never returns None.
+        let selection = stdin.next().unwrap()? as char;
+        match selection {
+            'k' => {
+                writeln!(stdout, "Keeping {}\r", branch.name)?;
+                return Ok(Action::Keep);
+            }
+
+            'd' => {
+                writeln!(stdout, "Deleting {}\r", branch.name)?;
+                return Ok(Action::Delete);
+            }
+            '?' => {
+                writeln!(stdout, "Help:\r")?;
+                writeln!(stdout, "k - Keep the branch\r")?;
+                writeln!(stdout, "d - Delete the branch\r")?;
+                writeln!(stdout, "q - Quit\r")?;
+                writeln!(stdout, "? - Show this help menu\r")?;
+            }
+            '\r' => {
+                write!(
+                    stdout,
+                    "Please select an option. Press '?' for help or 'q' to quit."
+                )?;
+            }
+            _ => {
+                if ['q', to_ctrl_char('c'), to_ctrl_char('d')].contains(&selection) {
+                    writeln!(stdout, "Quitting\r")?;
+                    return Ok(Action::Quit);
+                } else {
                     write!(
                         stdout,
-                        "Please select an option. Press '?' for help or 'q' to quit."
+                        "Invalid selection '{}'. Type '?' for help or 'q' to quit.",
+                        selection
                     )?;
-                }
-                _ => {
-                    if selection == 'q'
-                        || selection == to_ctrl_char('c')
-                        || selection == to_ctrl_char('d')
-                    {
-                        write!(stdout, "Quitting\r\n")?;
-                        break 'branch_loop;
-                    } else {
-                        write!(
-                            stdout,
-                            "Invalid selection '{}'. Type '?' for help or 'q' to quit.",
-                            selection
-                        )?;
-                    }
                 }
             }
         }
     }
-    Ok(())
 }
 
 fn get_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<Vec<Branch>> {
@@ -94,6 +100,12 @@ struct Branch {
     name: String,
     sha1: String,
     time: NaiveDateTime,
+}
+
+enum Action {
+    Keep,
+    Delete,
+    Quit,
 }
 
 const fn to_ctrl_char(c: char) -> char {

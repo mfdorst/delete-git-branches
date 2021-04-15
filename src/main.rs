@@ -10,18 +10,22 @@ fn main() -> Result<()> {
 
 fn repl() -> Result<()> {
     let repo = Repository::open_from_env()?;
-    for branch in get_branches(&repo, Some(BranchType::Local))? {
+    let mut branches = get_branches(&repo, Some(BranchType::Local))?;
+    if branches.is_empty() {
+        println!("No branches to delete (ignoring master and currently checked out branch)\r");
+    }
+    for branch in &mut branches {
         let action = get_action(branch)?;
         match action {
             Action::Keep => (),
-            Action::Delete => (), // TODO
+            Action::Delete => branch.handle.delete()?,
             Action::Quit => break,
         }
     }
     Ok(())
 }
 
-fn get_action(branch: Branch) -> Result<Action> {
+fn get_action(branch: &Branch) -> Result<Action> {
     let mut stdout = io::stdout();
     let mut stdin = io::stdin().bytes();
     loop {
@@ -75,6 +79,7 @@ fn get_action(branch: Branch) -> Result<Action> {
 }
 
 fn get_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<Vec<Branch>> {
+    let head_name = String::from_utf8_lossy(repo.head()?.shorthand_bytes()).to_string();
     let mut branches = repo
         .branches(branch_type)?
         .map(|branch| {
@@ -88,10 +93,11 @@ fn get_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<Ve
                     time.seconds() + (time.offset_minutes() as i64),
                     0,
                 ),
+                handle: branch,
             })
         })
         .filter(|branch| match branch {
-            Ok(b) => b.name != "master",
+            Ok(b) => b.name != "master" && b.name != head_name,
             Err(_) => true,
         })
         .collect::<Result<Vec<_>>>()?;
@@ -99,11 +105,11 @@ fn get_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<Ve
     Ok(branches)
 }
 
-#[derive(Debug)]
-struct Branch {
+struct Branch<'repo> {
     name: String,
     sha1: String,
     time: NaiveDateTime,
+    handle: git2::Branch<'repo>,
 }
 
 enum Action {

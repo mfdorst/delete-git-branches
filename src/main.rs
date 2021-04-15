@@ -93,9 +93,15 @@ impl TryFrom<char> for BranchAction {
         match value {
             'k' => Ok(BranchAction::Keep),
             'd' => Ok(BranchAction::Delete),
-            'q' => Ok(BranchAction::Quit),
             '?' => Ok(BranchAction::Help),
-            _ => Err(Error::InvalidInput(value)),
+            'q' => Ok(BranchAction::Quit),
+            _ => {
+                if value == to_ctrl_char('c') || value == to_ctrl_char('d') {
+                    Ok(BranchAction::Quit)
+                } else {
+                    Err(Error::InvalidInput(value))
+                }
+            }
         }
     }
 }
@@ -105,6 +111,10 @@ impl TryFrom<u8> for BranchAction {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         BranchAction::try_from(char::from(value))
     }
+}
+
+const fn to_ctrl_char(c: char) -> char {
+    (c as u8 & 0b0001_1111) as char
 }
 
 #[derive(Debug, thiserror::Error)]

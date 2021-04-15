@@ -37,6 +37,12 @@ fn main() -> Result<()> {
                     write!(stdout, "q - Quit\r\n")?;
                     write!(stdout, "? - Show this help menu\r\n")?;
                 }
+                '\r' => {
+                    write!(
+                        stdout,
+                        "Please select an option. Press '?' for help or 'q' to quit."
+                    )?;
+                }
                 _ => {
                     if selection == 'q'
                         || selection == to_ctrl_char('c')
@@ -47,7 +53,7 @@ fn main() -> Result<()> {
                     } else {
                         write!(
                             stdout,
-                            "Invalid selection '{}'. Type '?' for help.",
+                            "Invalid selection '{}'. Type '?' for help or 'q' to quit.",
                             selection
                         )?;
                     }
@@ -68,7 +74,7 @@ fn get_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<Ve
             let time = commit.time();
             Ok(Branch {
                 name: String::from_utf8_lossy(branch.name_bytes()?).into(),
-                sha1: format!("{}", commit.id()),
+                sha1: commit.id().to_string(),
                 time: NaiveDateTime::from_timestamp(
                     time.seconds() + (time.offset_minutes() as i64),
                     0,

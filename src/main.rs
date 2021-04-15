@@ -4,10 +4,14 @@ use std::io;
 use std::io::{Read, Write};
 
 fn main() -> Result<()> {
+    crossterm::terminal::enable_raw_mode()?;
+    repl().and(crossterm::terminal::disable_raw_mode().map_err(|e| Error::from(e)))
+}
+
+fn repl() -> Result<()> {
     let repo = Repository::open_from_env()?;
     let mut stdout = io::stdout();
     let mut stdin = io::stdin().bytes();
-    crossterm::terminal::enable_raw_mode()?;
     'branch_loop: for branch in get_branches(&repo, Some(BranchType::Local))? {
         loop {
             write!(
@@ -61,7 +65,6 @@ fn main() -> Result<()> {
             }
         }
     }
-    crossterm::terminal::disable_raw_mode()?;
     Ok(())
 }
 

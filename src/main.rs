@@ -1,6 +1,5 @@
 use chrono::prelude::*;
 use git2::{BranchType, Repository};
-use std::convert::TryFrom;
 use std::io;
 use std::io::{Read, Write};
 
@@ -20,29 +19,38 @@ fn main() -> Result<()> {
             )?;
             stdout.flush()?;
             // Unwrapping is okay because stdin.next() never returns None.
-            let selection = stdin.next().unwrap()?;
-            let action = BranchAction::try_from(selection);
-            match action {
-                Ok(BranchAction::Keep) => {
+            let selection = stdin.next().unwrap()? as char;
+            match selection {
+                'k' => {
                     write!(stdout, "Keeping {}\r\n", branch.name)?;
+                    break;
                 }
-                Ok(BranchAction::Delete) => {
+                'd' => {
                     write!(stdout, "Deleting {}\r\n", branch.name)?;
-                    unimplemented!();
+                    // TODO: Implement delete
+                    break;
                 }
-                Ok(BranchAction::Help) => {
+                '?' => {
                     write!(stdout, "Help:\r\n")?;
                     write!(stdout, "k - Keep the branch\r\n")?;
                     write!(stdout, "d - Delete the branch\r\n")?;
                     write!(stdout, "q - Quit\r\n")?;
                     write!(stdout, "? - Show this help menu\r\n")?;
                 }
-                Ok(BranchAction::Quit) => {
-                    write!(stdout, "Quitting\r\n")?;
-                    break 'branch_loop;
-                }
-                Err(e) => {
-                    write!(stdout, "{}\r\n", e)?;
+                _ => {
+                    if selection == 'q'
+                        || selection == to_ctrl_char('c')
+                        || selection == to_ctrl_char('d')
+                    {
+                        write!(stdout, "Quitting\r\n")?;
+                        break 'branch_loop;
+                    } else {
+                        write!(
+                            stdout,
+                            "Invalid selection '{}'. Type '?' for help.",
+                            selection
+                        )?;
+                    }
                 }
             }
         }
@@ -79,40 +87,6 @@ struct Branch {
     time: NaiveDateTime,
 }
 
-enum BranchAction {
-    Keep,
-    Delete,
-    Quit,
-    Help,
-}
-
-impl TryFrom<char> for BranchAction {
-    type Error = Error;
-
-    fn try_from(value: char) -> Result<Self, Self::Error> {
-        match value {
-            'k' => Ok(BranchAction::Keep),
-            'd' => Ok(BranchAction::Delete),
-            '?' => Ok(BranchAction::Help),
-            'q' => Ok(BranchAction::Quit),
-            _ => {
-                if value == to_ctrl_char('c') || value == to_ctrl_char('d') {
-                    Ok(BranchAction::Quit)
-                } else {
-                    Err(Error::InvalidInput(value))
-                }
-            }
-        }
-    }
-}
-
-impl TryFrom<u8> for BranchAction {
-    type Error = Error;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        BranchAction::try_from(char::from(value))
-    }
-}
-
 const fn to_ctrl_char(c: char) -> char {
     (c as u8 & 0b0001_1111) as char
 }
@@ -125,8 +99,6 @@ enum Error {
     Git2Error(#[from] git2::Error),
     #[error(transparent)]
     IoError(#[from] io::Error),
-    #[error("Invalid input `{0}`")]
-    InvalidInput(char),
 }
 
 type Result<T, E = Error> = std::result::Result<T, E>;

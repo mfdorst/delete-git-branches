@@ -37,12 +37,12 @@ fn get_action(branch: Branch) -> Result<Action> {
         let selection = stdin.next().unwrap()? as char;
         match selection {
             'k' => {
-                writeln!(stdout, "Keeping {}\r", branch.name)?;
+                write!(stdout, "Keeping {}", branch.name)?;
                 return Ok(Action::Keep);
             }
 
             'd' => {
-                writeln!(stdout, "Deleting {}\r", branch.name)?;
+                write!(stdout, "Deleting {}", branch.name)?;
                 return Ok(Action::Delete);
             }
             '?' => {
@@ -89,6 +89,10 @@ fn get_branches(repo: &Repository, branch_type: Option<BranchType>) -> Result<Ve
                     0,
                 ),
             })
+        })
+        .filter(|branch| match branch {
+            Ok(b) => b.name != "master",
+            Err(_) => true,
         })
         .collect::<Result<Vec<_>>>()?;
     branches.sort_unstable_by_key(|b| b.time);

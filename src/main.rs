@@ -31,10 +31,8 @@ fn get_action(branch: &Branch) -> Result<Action> {
     loop {
         write!(
             stdout,
-            "\r\n{} ({}) last commit at {} (k/d/q/?) > ",
-            branch.name,
-            &branch.sha1[0..7],
-            branch.time
+            "\r\n{} ({:.7}) last commit at {} (k/d/q/?) > ",
+            branch.name, branch.sha1, branch.time
         )?;
         stdout.flush()?;
         // Unwrapping is okay because stdin.next() never returns None.
